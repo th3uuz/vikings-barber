@@ -1,0 +1,51 @@
+@import "tailwindcss";
+
+/* Identidade visual da Vikings Barber: fundo carvão, dourado envelhecido e osso. */
+@theme {
+  --color-coal-950: #0c0b0a;
+  --color-coal-900: #13110f;
+  --color-coal-850: #1a1714;
+  --color-coal-800: #221e1a;
+  --color-coal-700: #2f2a24;
+  --color-coal-600: #403830;
+
+  --color-bone-50: #f6f1e7;
+  --color-bone-200: #d9cfbf;
+  --color-bone-400: #a89e8e;
+  --color-bone-500: #8a8173;
+
+  --color-gold-300: #f0cd85;
+  --color-gold-400: #e2b25a;
+  --color-gold-500: #c99740;
+  --color-gold-600: #a47a2f;
+
+  --color-blood-400: #ec7a68;
+  --color-blood-500: #d9553f;
+  --color-moss-400: #8cc78f;
+
+  --font-display: var(--font-cinzel), ui-serif, Georgia, serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  background-color: var(--color-coal-950);
+  color: var(--color-bone-50);
+  font-family: var(--font-sans);
+}
+
+/* Textura sutil de fundo, só com gradientes (sem imagens extras). */
+.bg-runes {
+  background-repeat: no-repeat;
+  background-image:
+    radial-gradient(circle at 20% 0%, rgb(226 178 90 / 0.08), transparent 45%),
+    radial-gradient(circle at 90% 20%, rgb(217 85 63 / 0.06), transparent 40%);
+}
+
+::selection {
+  background-color: var(--color-gold-500);
+  color: var(--color-coal-950);
+}
