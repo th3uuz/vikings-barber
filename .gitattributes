@@ -1,0 +1,5 @@
+# Mantém finais de linha LF no repositório, mesmo editando no Windows.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.ico binary

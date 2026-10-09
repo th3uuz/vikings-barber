@@ -1,0 +1,23 @@
+# Dependências
+node_modules/
+
+# Builds
+dist/
+.next/
+out/
+coverage/
+*.tsbuildinfo
+
+# Código gerado pelo Prisma (recriado com `npm install` ou `npx prisma generate`)
+backend/src/generated/
+
+# Variáveis de ambiente (nunca versionar segredos)
+.env
+.env.local
+.env.*.local
+
+# Sistema e editores
+.DS_Store
+Thumbs.db
+.idea/
+*.log
