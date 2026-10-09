@@ -42,4 +42,5 @@ Copie `.env.example` para `.env.local`.
 
 - Em produção o cookie de sessão sai com `Secure`, então o site precisa estar em HTTPS (ou `COOKIE_SECURE=false` num teste em `http://`).
 - O limite de tentativas de login da API usa o IP real do visitante, que o Next.js repassa no `X-Forwarded-For`. Em produção ele precisa ficar atrás de um proxy (o Traefik do Coolify faz isso).
+- Isso vale quando o site e a API estão no mesmo servidor. Com o site em outro lugar (na sua máquina ou na Cloudflare, chamando a API pelo domínio dela), a API conta as tentativas pelo IP do servidor do site.
 - Os formulários com campos controlados (agendamento e horários) usam `useFormAction` em vez de `<form action>`, porque o reset automático do React deixaria o select da tela diferente do estado.

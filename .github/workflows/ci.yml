@@ -97,3 +97,38 @@ jobs:
       - name: Derruba a stack
         if: always()
         run: docker compose down -v
+
+  docker-api:
+    name: Docker (só API e banco)
+    runs-on: ubuntu-latest
+    env:
+      POSTGRES_PASSWORD: ci0senha0de0teste
+      ADMIN_EMAIL: admin@ci.local
+      ADMIN_PASSWORD: admin-ci-12345
+      COMPOSE_FILE: docker-compose.api.yaml
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Sobe banco e API com a imagem de produção
+        run: docker compose up -d --build --wait --wait-timeout 300
+
+      - name: API responde no /health (API e banco juntos)
+        run: >-
+          docker compose exec -T api node -e
+          "fetch('http://127.0.0.1:3333/health').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+
+      - name: Admin criado no primeiro deploy consegue entrar
+        run: >-
+          docker compose exec -T api node -e
+          "fetch('http://127.0.0.1:3333/auth/login', { method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ email: process.env.ADMIN_EMAIL, password: process.env.ADMIN_PASSWORD }) })
+          .then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+
+      - name: Logs dos containers
+        if: failure()
+        run: docker compose logs
+
+      - name: Derruba a stack
+        if: always()
+        run: docker compose down -v

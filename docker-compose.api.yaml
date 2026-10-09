@@ -1,0 +1,47 @@
+# Produção só da API e do banco, para quando o site roda em outro lugar
+# (na sua máquina, apontando para esta API, ou na Cloudflare).
+#
+# Coolify: crie um recurso "Docker Compose" apontando para este arquivo, preencha as
+# variáveis obrigatórias e ligue um domínio HTTPS ao serviço "api" na porta 3333.
+# No site, use esse domínio (sem a porta) como API_URL.
+#
+# Só a API recebe tráfego de fora (pelo proxy). O banco fica na rede interna.
+# Para subir o site junto, no mesmo servidor, use o docker-compose.prod.yaml.
+
+name: vikings-barber-api
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: vikings
+      # Use só letras e números, porque a senha vai dentro da DATABASE_URL.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+      POSTGRES_DB: vikings_barber
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vikings -d vikings_barber"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://vikings:${POSTGRES_PASSWORD:?}@postgres:5432/vikings_barber
+      SHOP_TIMEZONE: ${SHOP_TIMEZONE:-America/Sao_Paulo}
+      SESSION_TTL_HOURS: ${SESSION_TTL_HOURS:-168}
+      SWAGGER_ENABLED: "false"
+      # Só usados no primeiro deploy, para criar o admin. Depois podem ficar vazios.
+      ADMIN_NAME: ${ADMIN_NAME:-Administrador}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres-data:

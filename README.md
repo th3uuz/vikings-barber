@@ -24,13 +24,14 @@ Projeto de portfólio de [Matheus Lacerda](https://github.com/th3uuz).
 
 **Produção**
 
-- Imagens Docker da API e do site, e um `docker-compose.prod.yaml` pronto para o Coolify (Postgres + API + site).
+- Imagens Docker da API e do site, prontas para o Coolify: `docker-compose.api.yaml` sobe só o banco e a API (com o site em outro lugar) e `docker-compose.prod.yaml` sobe tudo junto.
 - A API aplica as migrations e cria o primeiro admin sozinha ao subir.
 
 **Próximas etapas**
 
-- Primeiro deploy no Coolify.
+- Primeiro deploy da API no Coolify, com o site rodando local.
 - Backup diário do banco para fora da VPS antes de entrar dado real.
+- Site em produção na Cloudflare. O Cloudflare Pages só publica sites estáticos e o painel precisa de servidor (login e formulários), então o site vai rodar em Cloudflare Workers. Antes disso, o limite de tentativas de login precisa passar a contar pelo IP do visitante: com o site fora do servidor, a API só enxerga o IP de quem a chama.
 
 ## Stack
 
@@ -101,17 +102,38 @@ Se a porta 5432 já estiver em uso por outro Postgres, troque para `"127.0.0.1:5
 
 ## Deploy no Coolify
 
-1. No Coolify, crie um recurso a partir do repositório `vikings-barber` (branch `main`) com o build pack **Docker Compose**.
-2. Em **Docker Compose Location**, use `/docker-compose.prod.yaml`.
+Há dois arquivos de produção. Escolha conforme onde o site vai rodar:
+
+| Arquivo                    | O que sobe            | Quando usar                                                  |
+| -------------------------- | --------------------- | ------------------------------------------------------------ |
+| `docker-compose.api.yaml`  | Postgres + API        | O site roda em outro lugar (na sua máquina ou na Cloudflare) |
+| `docker-compose.prod.yaml` | Postgres + API + site | Tudo no mesmo servidor                                       |
+
+### Só a API e o banco
+
+1. No Coolify, abra o projeto, clique em **+ New** e escolha **Public Repository**. Cole `https://github.com/th3uuz/vikings-barber` e clique em **Check Repository**.
+2. Use a branch `main`, o build pack **Docker Compose**, **Base Directory** `/` e **Docker Compose Location** `/docker-compose.api.yaml`.
 3. Em **Environment Variables**, preencha:
    - `POSTGRES_PASSWORD`: só letras e números (ex.: gerada com `openssl rand -hex 24`).
    - `ADMIN_EMAIL` e `ADMIN_PASSWORD` (mínimo 8 caracteres): o primeiro admin.
-   - `WHATSAPP_NUMBER` (opcional): com DDI e DDD, só números.
-4. No serviço **web**, coloque o domínio com a porta 3000, por exemplo `https://agenda.seudominio.com.br:3000`. Sem domínio próprio, use o endereço `sslip.io` que o Coolify sugere, trocando `http://` por `https://`, porque o login só funciona em HTTPS.
+4. No serviço **api**, coloque um domínio HTTPS com a porta 3333, por exemplo `https://api.seudominio.com.br:3333`. Sem domínio próprio, use `https://api.IP-DA-VPS.sslip.io:3333`, trocando `IP-DA-VPS` pelo IP do servidor (com os pontos). O `:3333` só diz ao Coolify para qual porta do container mandar; o endereço público fica sem porta.
 5. Faça o deploy. Ao subir, a API aplica as migrations, cria o horário de funcionamento padrão e o admin.
-6. Entre em `/login`, troque a senha em **Minha conta** e, se quiser, apague `ADMIN_PASSWORD` das variáveis. Ela só é usada enquanto não existe nenhum admin.
+6. Abra `https://api.IP-DA-VPS.sslip.io/health`. Tem que aparecer `{"status":"ok"}`. O certificado HTTPS (Let's Encrypt) é emitido pelo Coolify e pode levar alguns segundos depois do deploy.
 
-A API e o banco não ficam expostos para fora: só o serviço `web` recebe tráfego, pelo proxy do Coolify. Os dados do banco ficam no volume `postgres-data`.
+Para usar o site na sua máquina com essa API, coloque o endereço dela, sem a porta, em `API_URL` no `frontend/.env.local` e rode `npm run dev` (veja [Como rodar no Windows](#como-rodar-no-windows)). Entre em `/login` com o `ADMIN_EMAIL` e o `ADMIN_PASSWORD` e troque a senha em **Minha conta**.
+
+Com a API exposta, as regras continuam as mesmas: tudo exige login, menos `/health`, o login e a agenda pública, e o Swagger fica desligado. A API não libera CORS: quem conversa com ela é o servidor do Next.js, nunca o navegador.
+
+### API, banco e site juntos
+
+1. Crie o recurso como acima, mas com **Docker Compose Location** `/docker-compose.prod.yaml`.
+2. Além das variáveis acima, preencha `WHATSAPP_NUMBER` se quiser (opcional, com DDI e DDD, só números).
+3. Coloque o domínio no serviço **web** com a porta 3000, por exemplo `https://agenda.seudominio.com.br:3000` ou `https://agenda.IP-DA-VPS.sslip.io:3000`. Tem que ser `https://`, porque o login só funciona em HTTPS.
+4. Faça o deploy, entre em `/login` e troque a senha em **Minha conta**.
+
+Nesse modo a API e o banco não ficam expostos para fora: só o serviço `web` recebe tráfego, pelo proxy do Coolify.
+
+Nos dois casos os dados do banco ficam no volume `postgres-data`, e `ADMIN_PASSWORD` pode ser apagada depois do primeiro deploy: ela só é usada enquanto não existe nenhum admin.
 
 Fora do Coolify, em qualquer servidor com Docker:
 
@@ -183,6 +205,7 @@ vikings-barber/
 │       ├── lib/              cliente da API, sessão, datas e horários livres
 │       └── proxy.ts          manda para o login quem abre o painel sem sessão
 ├── compose.yaml              Postgres para desenvolvimento
+├── docker-compose.api.yaml   produção só de Postgres e API (site em outro lugar)
 ├── docker-compose.prod.yaml  produção: Postgres, API e site
 └── .github/workflows/ci.yml  lint, build, testes e a stack de produção a cada PR
 ```
