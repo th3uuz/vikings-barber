@@ -14,20 +14,27 @@ Projeto de portfólio de [Matheus Lacerda](https://github.com/th3uuz).
 - A agenda pública mostra os horários ocupados de cada barbeiro, sem nenhum dado dos clientes.
 - O próprio banco impede dois agendamentos sobrepostos para o mesmo barbeiro, mesmo com pedidos simultâneos.
 
-**Próximas etapas**
+**Frontend (Next.js)**
 
-- Frontend em Next.js: painel do admin, painel do barbeiro e página pública.
+- Página pública com os horários livres de cada barbeiro, serviços com preço e horário de funcionamento. Com `WHATSAPP_NUMBER` configurado, cada horário livre vira um link para pedir pelo WhatsApp.
+- Painel do admin: agenda de todos os barbeiros com filtro, cadastro de barbeiros, serviços e horário de funcionamento.
+- Painel do barbeiro: só a própria agenda.
+- O formulário de agendamento mostra apenas os horários em que o serviço escolhido cabe inteiro.
+- Funciona no celular.
+
+**Próxima etapa**
+
 - Docker Compose de produção e deploy no Coolify.
 
 ## Stack
 
-| Parte    | Tecnologia                                           |
-| -------- | ---------------------------------------------------- |
-| Backend  | Node.js 24 LTS, NestJS 12, TypeScript, Prisma 7      |
-| Banco    | PostgreSQL 18                                        |
+| Parte    | Tecnologia                                             |
+| -------- | ------------------------------------------------------ |
+| Backend  | Node.js 24 LTS, NestJS 12, TypeScript, Prisma 7        |
+| Banco    | PostgreSQL 18                                          |
 | Testes   | Vitest e Supertest (e2e contra um Postgres de verdade) |
-| CI       | GitHub Actions                                       |
-| Frontend | Next.js 16 (próxima etapa)                           |
+| CI       | GitHub Actions                                         |
+| Frontend | Next.js 16, React 19, Tailwind CSS 4                   |
 
 ## Decisões de segurança
 
@@ -39,6 +46,8 @@ Projeto de portfólio de [Matheus Lacerda](https://github.com/th3uuz).
 - **Força bruta.** O login aceita 5 tentativas por minuto por IP e responde a mesma mensagem para e-mail inexistente e senha errada.
 - **Privacidade.** A agenda pública nunca devolve nome, telefone ou observações dos clientes.
 - **Agendamento duplo** bloqueado por uma constraint `EXCLUDE` do Postgres, e não só por código.
+- **O token não chega ao navegador.** O navegador só conversa com o Next.js, que guarda o token num cookie `httpOnly` e chama a API pelo servidor. Um script injetado na página não consegue ler a sessão.
+- **A tela não é a segurança.** O painel esconde o que o usuário não pode usar, mas quem bloqueia de verdade é a API, em toda requisição.
 
 ## Como rodar no Windows
 
@@ -64,12 +73,23 @@ npm run start:dev
 
 A API sobe em `http://localhost:3333` e a documentação interativa (Swagger) fica em `http://localhost:3333/docs`.
 
+Em outro terminal, suba o frontend:
+
+```powershell
+cd vikings-barber/frontend
+Copy-Item .env.example .env.local
+npm install
+npm run dev
+```
+
+O site abre em `http://localhost:3000`. O painel fica em `/painel` e o login em `/login`.
+
 Usuários criados pelo seed:
 
-| Papel    | E-mail                                                                  | Senha                            |
-| -------- | ----------------------------------------------------------------------- | -------------------------------- |
-| Admin    | `admin@vikingsbarber.local`                                             | `ADMIN_PASSWORD` do `.env`       |
-| Barbeiro | `ragnar@vikingsbarber.local`, `lagertha@...`, `bjorn@...`               | `DEMO_PASSWORD` do `.env`        |
+| Papel    | E-mail                                                    | Senha                      |
+| -------- | --------------------------------------------------------- | -------------------------- |
+| Admin    | `admin@vikingsbarber.local`                               | `ADMIN_PASSWORD` do `.env` |
+| Barbeiro | `ragnar@vikingsbarber.local`, `lagertha@...`, `bjorn@...` | `DEMO_PASSWORD` do `.env`  |
 
 Se a porta 5432 já estiver em uso por outro Postgres, troque para `"127.0.0.1:5433:5432"` no `compose.yaml` e ajuste a porta no `DATABASE_URL`.
 
@@ -79,32 +99,37 @@ Se a porta 5432 já estiver em uso por outro Postgres, troque para `"127.0.0.1:5
 cd backend
 npm test           # testes unitários
 npm run test:e2e   # testes e2e (na primeira vez cria o banco vikings_barber_test)
+
+cd ../frontend
+npm run lint
+npm run typecheck
+npm run build
 ```
 
 Os testes e2e sobem a aplicação inteira e conversam com o Postgres do `docker compose`. Eles só rodam num banco com "test" no nome, para nunca apagarem os seus dados de desenvolvimento.
 
 ## Rotas da API
 
-| Rota                              | Quem pode                        | O que faz                                          |
-| --------------------------------- | -------------------------------- | -------------------------------------------------- |
-| `POST /auth/login`                | Qualquer pessoa                  | Entra e recebe o token da sessão                   |
-| `POST /auth/logout`               | Logado                           | Encerra a sessão atual                             |
-| `GET /auth/me`                    | Logado                           | Dados do usuário logado                            |
-| `POST /auth/password`             | Logado                           | Troca a própria senha                              |
-| `GET /barbers`                    | Admin                            | Lista os barbeiros                                 |
-| `POST /barbers`                   | Admin                            | Cadastra barbeiro (e o login dele)                 |
-| `PATCH /barbers/:id`              | Admin                            | Edita nome ou ativa/desativa                       |
-| `PUT /barbers/:id/password`       | Admin                            | Define uma nova senha para o barbeiro              |
-| `GET /services`                   | Logado                           | Lista os serviços                                  |
-| `POST /services`, `PATCH /services/:id` | Admin                      | Cadastra e edita serviços                          |
-| `GET /business-hours`             | Qualquer pessoa                  | Horário de funcionamento da semana                 |
-| `PUT /business-hours`             | Admin                            | Troca o horário de funcionamento                   |
-| `GET /appointments?date=`         | Admin (todos) ou barbeiro (o seu) | Agendamentos do dia                               |
-| `POST /appointments`              | Admin (todos) ou barbeiro (o seu) | Cria agendamento                                  |
-| `POST /appointments/:id/cancel`   | Admin (todos) ou barbeiro (o seu) | Cancela agendamento                               |
-| `GET /public/agenda?date=`        | Qualquer pessoa                  | Horários ocupados de cada barbeiro no dia          |
-| `GET /public/services`            | Qualquer pessoa                  | Serviços ativos com preço e duração                |
-| `GET /health`                     | Qualquer pessoa                  | Verifica se a API e o banco estão no ar            |
+| Rota                                    | Quem pode                         | O que faz                                 |
+| --------------------------------------- | --------------------------------- | ----------------------------------------- |
+| `POST /auth/login`                      | Qualquer pessoa                   | Entra e recebe o token da sessão          |
+| `POST /auth/logout`                     | Logado                            | Encerra a sessão atual                    |
+| `GET /auth/me`                          | Logado                            | Dados do usuário logado                   |
+| `POST /auth/password`                   | Logado                            | Troca a própria senha                     |
+| `GET /barbers`                          | Admin                             | Lista os barbeiros                        |
+| `POST /barbers`                         | Admin                             | Cadastra barbeiro (e o login dele)        |
+| `PATCH /barbers/:id`                    | Admin                             | Edita nome ou ativa/desativa              |
+| `PUT /barbers/:id/password`             | Admin                             | Define uma nova senha para o barbeiro     |
+| `GET /services`                         | Logado                            | Lista os serviços                         |
+| `POST /services`, `PATCH /services/:id` | Admin                             | Cadastra e edita serviços                 |
+| `GET /business-hours`                   | Qualquer pessoa                   | Horário de funcionamento da semana        |
+| `PUT /business-hours`                   | Admin                             | Troca o horário de funcionamento          |
+| `GET /appointments?date=`               | Admin (todos) ou barbeiro (o seu) | Agendamentos do dia                       |
+| `POST /appointments`                    | Admin (todos) ou barbeiro (o seu) | Cria agendamento                          |
+| `POST /appointments/:id/cancel`         | Admin (todos) ou barbeiro (o seu) | Cancela agendamento                       |
+| `GET /public/agenda?date=`              | Qualquer pessoa                   | Horários ocupados de cada barbeiro no dia |
+| `GET /public/services`                  | Qualquer pessoa                   | Serviços ativos com preço e duração       |
+| `GET /health`                           | Qualquer pessoa                   | Verifica se a API e o banco estão no ar   |
 
 As rotas logadas recebem o token no cabeçalho `Authorization: Bearer <token>`.
 
@@ -124,7 +149,12 @@ vikings-barber/
 │   │   ├── health/           health check
 │   │   └── database/seed.ts  dados iniciais
 │   └── test/                 testes e2e
-├── frontend/                 Next.js (próxima etapa)
+├── frontend/                 site e painel em Next.js
+│   └── src/
+│       ├── app/              páginas: agenda pública, login e /painel
+│       ├── components/       botões, campos e formulários reutilizáveis
+│       ├── lib/              cliente da API, sessão, datas e horários livres
+│       └── proxy.ts          manda para o login quem abre o painel sem sessão
 ├── compose.yaml              Postgres para desenvolvimento
-└── .github/workflows/ci.yml  lint, build e testes a cada PR
+└── .github/workflows/ci.yml  lint, build e testes de cada parte a cada PR
 ```
