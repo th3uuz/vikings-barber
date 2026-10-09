@@ -2,9 +2,11 @@
 // No código os modelos usam PascalCase; no banco, tabelas e colunas usam snake_case.
 
 generator client {
-  provider     = "prisma-client"
-  output       = "../src/generated/prisma"
-  moduleFormat = "esm"
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  // Fixo em .js para o código gerado ser igual com ou sem o tsconfig por perto (ex.: no build do Docker).
+  importFileExtension = "js"
 }
 
 datasource db {

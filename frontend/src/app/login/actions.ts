@@ -36,11 +36,20 @@ export async function login(_previous: FormState, formData: FormData): Promise<F
   // O token fica num cookie httpOnly: o JavaScript da página não consegue lê-lo.
   (await cookies()).set(SESSION_COOKIE, session.token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: secureCookie(),
     sameSite: "lax",
     path: "/",
     expires: new Date(session.expiresAt),
   });
 
   redirect("/painel");
+}
+
+/**
+ * Em produção o cookie só trafega por HTTPS. COOKIE_SECURE=false libera o uso
+ * em http:// (só para testes, nunca com dados reais).
+ */
+function secureCookie(): boolean {
+  if (process.env.COOKIE_SECURE) return process.env.COOKIE_SECURE !== "false";
+  return process.env.NODE_ENV === "production";
 }

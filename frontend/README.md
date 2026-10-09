@@ -20,11 +20,12 @@ O navegador só conversa com o Next.js. As páginas e as Server Actions chamam a
 
 Copie `.env.example` para `.env.local`.
 
-| Variável          | Para que serve                                                               |
-| ----------------- | ---------------------------------------------------------------------------- |
-| `API_URL`         | Endereço da API. Padrão: `http://localhost:3333`                             |
-| `SHOP_TIMEZONE`   | Fuso da barbearia, igual ao da API. Padrão: `America/Sao_Paulo`              |
-| `WHATSAPP_NUMBER` | Opcional. Com DDI e DDD (ex.: `5511999999999`), liga os horários ao WhatsApp |
+| Variável          | Para que serve                                                                     |
+| ----------------- | ---------------------------------------------------------------------------------- |
+| `API_URL`         | Endereço da API. Padrão: `http://localhost:3333`                                   |
+| `SHOP_TIMEZONE`   | Fuso da barbearia, igual ao da API. Padrão: `America/Sao_Paulo`                    |
+| `WHATSAPP_NUMBER` | Opcional. Com DDI e DDD (ex.: `5511999999999`), liga os horários ao WhatsApp       |
+| `COOKIE_SECURE`   | Opcional. `false` libera o login em `http://` no build de produção (só para teste) |
 
 ## Scripts
 
@@ -39,6 +40,6 @@ Copie `.env.example` para `.env.local`.
 
 ## Detalhes que valem saber
 
-- Em produção o cookie de sessão sai com `Secure`, então o site precisa estar em HTTPS.
+- Em produção o cookie de sessão sai com `Secure`, então o site precisa estar em HTTPS (ou `COOKIE_SECURE=false` num teste em `http://`).
 - O limite de tentativas de login da API usa o IP real do visitante, que o Next.js repassa no `X-Forwarded-For`. Em produção ele precisa ficar atrás de um proxy (o Traefik do Coolify faz isso).
 - Os formulários com campos controlados (agendamento e horários) usam `useFormAction` em vez de `<form action>`, porque o reset automático do React deixaria o select da tela diferente do estado.

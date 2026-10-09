@@ -69,3 +69,31 @@ jobs:
       - run: npm run format:check
       - run: npm run typecheck
       - run: npm run build
+
+  docker:
+    name: Docker (stack de produção)
+    runs-on: ubuntu-latest
+    env:
+      POSTGRES_PASSWORD: ci0senha0de0teste
+      ADMIN_EMAIL: admin@ci.local
+      ADMIN_PASSWORD: admin-ci-12345
+      COMPOSE_FILE: docker-compose.prod.yaml
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Sobe banco, API e site com as imagens de produção
+        run: docker compose up -d --build --wait --wait-timeout 300
+
+      - name: Página inicial responde (site, API e banco juntos)
+        run: >-
+          docker compose exec -T web node -e
+          "fetch('http://127.0.0.1:3000/').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+
+      - name: Logs dos containers
+        if: failure()
+        run: docker compose logs
+
+      - name: Derruba a stack
+        if: always()
+        run: docker compose down -v

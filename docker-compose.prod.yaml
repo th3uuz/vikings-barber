@@ -1,0 +1,58 @@
+# Produção: Postgres + API + site, prontos para o Coolify ou qualquer servidor com Docker.
+#
+# Coolify: crie um recurso "Docker Compose" apontando para este arquivo, preencha as
+# variáveis obrigatórias e ligue o domínio ao serviço "web" na porta 3000.
+#
+# Outro servidor: docker compose -f docker-compose.prod.yaml --env-file .env.prod up -d --build
+#
+# Só o "web" recebe tráfego de fora (pelo proxy). A API e o banco ficam na rede interna.
+
+name: vikings-barber-prod
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: vikings
+      # Use só letras e números, porque a senha vai dentro da DATABASE_URL.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+      POSTGRES_DB: vikings_barber
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vikings -d vikings_barber"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://vikings:${POSTGRES_PASSWORD:?}@postgres:5432/vikings_barber
+      SHOP_TIMEZONE: ${SHOP_TIMEZONE:-America/Sao_Paulo}
+      SESSION_TTL_HOURS: ${SESSION_TTL_HOURS:-168}
+      SWAGGER_ENABLED: "false"
+      # Só usados no primeiro deploy, para criar o admin. Depois podem ficar vazios.
+      ADMIN_NAME: ${ADMIN_NAME:-Administrador}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    build: ./frontend
+    restart: unless-stopped
+    environment:
+      API_URL: http://api:3333
+      SHOP_TIMEZONE: ${SHOP_TIMEZONE:-America/Sao_Paulo}
+      WHATSAPP_NUMBER: ${WHATSAPP_NUMBER:-}
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  postgres-data:
