@@ -22,9 +22,15 @@ Projeto de portfólio de [Matheus Lacerda](https://github.com/th3uuz).
 - O formulário de agendamento mostra apenas os horários em que o serviço escolhido cabe inteiro.
 - Funciona no celular.
 
-**Próxima etapa**
+**Produção**
 
-- Docker Compose de produção e deploy no Coolify.
+- Imagens Docker da API e do site, e um `docker-compose.prod.yaml` pronto para o Coolify (Postgres + API + site).
+- A API aplica as migrations e cria o primeiro admin sozinha ao subir.
+
+**Próximas etapas**
+
+- Primeiro deploy no Coolify.
+- Backup diário do banco para fora da VPS antes de entrar dado real.
 
 ## Stack
 
@@ -93,6 +99,27 @@ Usuários criados pelo seed:
 
 Se a porta 5432 já estiver em uso por outro Postgres, troque para `"127.0.0.1:5433:5432"` no `compose.yaml` e ajuste a porta no `DATABASE_URL`.
 
+## Deploy no Coolify
+
+1. No Coolify, crie um recurso a partir do repositório `vikings-barber` (branch `main`) com o build pack **Docker Compose**.
+2. Em **Docker Compose Location**, use `/docker-compose.prod.yaml`.
+3. Em **Environment Variables**, preencha:
+   - `POSTGRES_PASSWORD`: só letras e números (ex.: gerada com `openssl rand -hex 24`).
+   - `ADMIN_EMAIL` e `ADMIN_PASSWORD` (mínimo 8 caracteres): o primeiro admin.
+   - `WHATSAPP_NUMBER` (opcional): com DDI e DDD, só números.
+4. No serviço **web**, coloque o domínio com a porta 3000, por exemplo `https://agenda.seudominio.com.br:3000`. Sem domínio próprio, use o endereço `sslip.io` que o Coolify sugere, trocando `http://` por `https://`, porque o login só funciona em HTTPS.
+5. Faça o deploy. Ao subir, a API aplica as migrations, cria o horário de funcionamento padrão e o admin.
+6. Entre em `/login`, troque a senha em **Minha conta** e, se quiser, apague `ADMIN_PASSWORD` das variáveis. Ela só é usada enquanto não existe nenhum admin.
+
+A API e o banco não ficam expostos para fora: só o serviço `web` recebe tráfego, pelo proxy do Coolify. Os dados do banco ficam no volume `postgres-data`.
+
+Fora do Coolify, em qualquer servidor com Docker:
+
+```bash
+cp .env.prod.example .env.prod   # e preencha
+docker compose -f docker-compose.prod.yaml --env-file .env.prod up -d --build
+```
+
 ## Testes
 
 ```powershell
@@ -156,5 +183,6 @@ vikings-barber/
 │       ├── lib/              cliente da API, sessão, datas e horários livres
 │       └── proxy.ts          manda para o login quem abre o painel sem sessão
 ├── compose.yaml              Postgres para desenvolvimento
-└── .github/workflows/ci.yml  lint, build e testes de cada parte a cada PR
+├── docker-compose.prod.yaml  produção: Postgres, API e site
+└── .github/workflows/ci.yml  lint, build, testes e a stack de produção a cada PR
 ```

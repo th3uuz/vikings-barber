@@ -21,3 +21,6 @@ backend/src/generated/
 Thumbs.db
 .idea/
 *.log
+
+# Variáveis do deploy fora do Coolify
+.env.prod

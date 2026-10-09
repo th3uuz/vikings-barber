@@ -2,7 +2,8 @@
  * Seed do banco. Pode rodar quantas vezes quiser: só cria o que ainda não existe.
  *
  * - Horário de funcionamento padrão (se a tabela estiver vazia).
- * - Primeiro admin, com os dados de ADMIN_NAME, ADMIN_EMAIL e ADMIN_PASSWORD.
+ * - Primeiro admin, com os dados de ADMIN_NAME, ADMIN_EMAIL e ADMIN_PASSWORD
+ *   (só quando ainda não existe nenhum admin).
  * - Com SEED_DEMO_DATA=true (nunca em produção): serviços, barbeiros e agendamentos de exemplo.
  *
  * Desenvolvimento: npm run db:seed
@@ -42,7 +43,20 @@ async function seedBusinessHours() {
   console.log('Horário de funcionamento padrão criado.');
 }
 
+/**
+ * Cria o primeiro admin. Se já existe algum admin, não faz nada, então
+ * ADMIN_EMAIL e ADMIN_PASSWORD só são necessários no primeiro deploy.
+ */
 async function seedAdmin() {
+  const existing = await prisma.user.findFirst({
+    where: { role: Role.ADMIN },
+    select: { email: true },
+  });
+  if (existing) {
+    console.log(`Admin ${existing.email} já existe; nada a fazer.`);
+    return;
+  }
+
   const email = requireEnv('ADMIN_EMAIL').toLowerCase();
   const password = requireEnv('ADMIN_PASSWORD');
   if (password.length < 8) {
@@ -52,12 +66,6 @@ async function seedAdmin() {
     throw new Error(
       'Troque o ADMIN_PASSWORD de exemplo antes de rodar em produção.',
     );
-  }
-
-  const existing = await prisma.user.findUnique({ where: { email } });
-  if (existing) {
-    console.log(`Admin ${email} já existe; senha mantida.`);
-    return;
   }
 
   await prisma.user.create({
