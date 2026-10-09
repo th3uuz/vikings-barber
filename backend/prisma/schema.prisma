@@ -1,0 +1,131 @@
+// Modelo de dados do Vikings Barber.
+// No código os modelos usam PascalCase; no banco, tabelas e colunas usam snake_case.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  BARBER
+
+  @@map("user_role")
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  CANCELLED
+
+  @@map("appointment_status")
+}
+
+model User {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  name         String
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  role         Role
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  barber                Barber?
+  sessions              Session[]
+  createdAppointments   Appointment[] @relation("AppointmentCreatedBy")
+  cancelledAppointments Appointment[] @relation("AppointmentCancelledBy")
+
+  @@map("users")
+}
+
+/// Sessão de login. O token em si nunca é salvo, só o hash SHA-256 dele.
+model Session {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  tokenHash  String   @unique @map("token_hash")
+  userId     String   @map("user_id") @db.Uuid
+  expiresAt  DateTime @map("expires_at") @db.Timestamptz(3)
+  lastSeenAt DateTime @default(now()) @map("last_seen_at") @db.Timestamptz(3)
+  ip         String?
+  userAgent  String?  @map("user_agent")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+/// Perfil público do barbeiro. Cada barbeiro tem um usuário próprio para entrar no painel.
+model Barber {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  userId      String   @unique @map("user_id") @db.Uuid
+  displayName String   @map("display_name")
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user         User          @relation(fields: [userId], references: [id])
+  appointments Appointment[]
+
+  @@map("barbers")
+}
+
+/// Serviço oferecido pela barbearia (corte, barba...). A duração define o fim do agendamento.
+model Service {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  name            String   @unique
+  durationMinutes Int      @map("duration_minutes")
+  priceCents      Int      @map("price_cents")
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  appointments Appointment[]
+
+  @@map("services")
+}
+
+/// Horário de funcionamento, uma linha por dia da semana (0 = domingo ... 6 = sábado).
+/// Os horários são minutos desde 00:00 no fuso da barbearia. Os dois nulos = fechado.
+model BusinessHours {
+  weekday  Int  @id
+  opensAt  Int? @map("opens_at")
+  closesAt Int? @map("closes_at")
+
+  @@map("business_hours")
+}
+
+/// Agendamento. A constraint `appointments_no_overlap` (na migration) impede dois
+/// agendamentos ativos do mesmo barbeiro com horários sobrepostos.
+model Appointment {
+  id            String            @id @default(uuid(7)) @db.Uuid
+  barberId      String            @map("barber_id") @db.Uuid
+  serviceId     String            @map("service_id") @db.Uuid
+  clientName    String            @map("client_name")
+  clientPhone   String?           @map("client_phone")
+  notes         String?
+  startsAt      DateTime          @map("starts_at") @db.Timestamptz(3)
+  endsAt        DateTime          @map("ends_at") @db.Timestamptz(3)
+  /// Preço do serviço no momento do agendamento.
+  priceCents    Int               @map("price_cents")
+  status        AppointmentStatus @default(SCHEDULED)
+  createdById   String            @map("created_by_id") @db.Uuid
+  cancelledById String?           @map("cancelled_by_id") @db.Uuid
+  cancelledAt   DateTime?         @map("cancelled_at") @db.Timestamptz(3)
+  createdAt     DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  barber      Barber  @relation(fields: [barberId], references: [id])
+  service     Service @relation(fields: [serviceId], references: [id])
+  createdBy   User    @relation("AppointmentCreatedBy", fields: [createdById], references: [id])
+  cancelledBy User?   @relation("AppointmentCancelledBy", fields: [cancelledById], references: [id])
+
+  @@index([barberId, startsAt])
+  @@index([startsAt])
+  @@map("appointments")
+}
